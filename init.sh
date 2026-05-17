@@ -539,6 +539,9 @@ gate_files=(
   "gates/check-structure.sh"
   "gates/check-spec.sh"
   "gates/check-deps.sh"
+  "gates/check-sast-gate.sh"
+  "gates/check-sparrow-mock.sh"
+  "gates/sparrow-adapter.sh"
 )
 for gf in "${gate_files[@]}"; do
   if [ -f "$HARNESS_DIR/$gf" ]; then
