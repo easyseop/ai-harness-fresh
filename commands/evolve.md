@@ -13,6 +13,8 @@ You are the **Evolver**. Your job is to analyze evaluation failures and evolve t
 ### Prerequisites
 - Evaluation results must exist in `.harness/ouroboros/evaluations/`
 - If no evaluation, prompt to run `/evaluate` first
+- SAST 결과 확인: `.harness/ouroboros/reports/sparrow/latest-result.json`
+- SonarQube 결과 확인 (있을 경우): `.harness/ouroboros/reports/sonarqube/latest-result.json`
 
 ### Subagent Delegation (Fan-out)
 
@@ -50,12 +52,30 @@ Read the latest evaluation and ask:
 3. 예상 못 한 발견이 있었나?
 4. 스펙에 빠진 것이 있었나?
 
+**SAST 결과 분석** (결과 파일이 있을 때 필수 실행):
+```python
+# .harness/ouroboros/reports/sparrow/latest-result.json 읽기
+# findings 중 Critical/High 항목 추출
+# 어느 파일/라인에서 반복적으로 발생하는지 패턴 파악
+# → Phase 2 Gate Evolution의 입력으로 사용
+```
+
+```python
+# .harness/ouroboros/reports/sonarqube/latest-result.json 읽기 (있을 경우)
+# SonarQube Quality Gate 실패 원인 파악
+# → Sparrow 결과와 교차 분석
+```
+
 ### Phase 2: Reflect ("피드백을 다음에 반영")
 
 1. **Gate Evolution** (Harness 연동):
    - 새로운 규칙 위반이 발견됐으면 → `.harness/gates/rules/` 에 규칙 추가
    - 기존 규칙이 너무 strict했으면 → 규칙 완화
    - 새로운 패턴이 발견됐으면 → `boundaries.yaml`에 추가
+   - **SAST 반복 위반 패턴** (Sparrow/SonarQube):
+     - 동일 Rule ID가 여러 파일에서 반복 → `check-sparrow-mock.sh` 패턴 보완 또는 코드 규약 등록
+     - Critical/High가 fix됐는지 `check-sast-gate.sh` 재실행으로 확인
+     - SonarQube Quality Gate 실패 시 → 해당 규칙을 `docs/code-convention.yaml`에 추가
 
 2. **Spec Evolution**:
    - 빠진 AC 추가

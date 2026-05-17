@@ -48,19 +48,45 @@ Run automated checks — these cost nothing and catch obvious issues:
 # 2. Layer separation check
 .harness/gates/check-layers.sh
 
-# 3. Lint (if available)
+# 3. Sparrow Mock SAST (필수)
+#    check-sast-gate.sh 실행 결과 파일을 읽는다
+if [ -f ".harness/ouroboros/reports/sparrow/latest-result.json" ]; then
+  python3 -c "
+import json
+d = json.load(open('.harness/ouroboros/reports/sparrow/latest-result.json'))
+print(f\"  SAST: {d['status']} — Critical:{d['summary']['critical']} High:{d['summary']['high']} Medium:{d['summary']['medium']}\")
+for f in d['findings']:
+    if f['severity'] in ('Critical', 'High'):
+        print(f\"    [{f['severity']}] {f['rule_id']} {f['file']}:{f['line']} — {f['message']}\")
+"
+else
+  echo "  SAST: SKIP (check-sast-gate.sh를 먼저 실행하세요)"
+fi
+
+# 4. SonarQube (CI 이후에만 존재 — 로컬에서는 SKIP)
+if [ -f ".harness/ouroboros/reports/sonarqube/latest-result.json" ]; then
+  python3 -c "
+import json
+d = json.load(open('.harness/ouroboros/reports/sonarqube/latest-result.json'))
+print(f\"  SonarQube: {d['status']} (branch: {d.get('branch','?')}, commit: {d.get('commit','?')[:7]})\")
+"
+else
+  echo "  SonarQube: SKIP (CI 실행 후 결과가 생성됩니다)"
+fi
+
+# 5. Lint (if available)
 # TypeScript: npx eslint . --quiet
 # Python: ruff check . || python -m flake8
 
-# 4. Type check (if available)
+# 6. Type check (if available)
 # TypeScript: npx tsc --noEmit
 # Python: mypy . || pyright
 
-# 5. Build (if available)
+# 7. Build (if available)
 # Next.js: npm run build
 # Python: python -m py_compile
 
-# 6. Tests (if available)
+# 8. Tests (if available)
 # npm test || pytest
 ```
 
@@ -69,6 +95,8 @@ Run automated checks — these cost nothing and catch obvious issues:
 ═══ Stage 1: Mechanical ═══════════════════════
   Harness Gates:    PASS | FAIL
   Layer Check:      PASS | FAIL | SKIP
+  SAST (Sparrow):   PASS | FAIL | SKIP  ← Critical/High 건수 표시
+  SonarQube:        PASS | FAIL | SKIP (CI 이후)
   Lint:             PASS | FAIL | SKIP (not configured)
   Type Check:       PASS | FAIL | SKIP
   Build:            PASS | FAIL | SKIP
@@ -76,6 +104,8 @@ Run automated checks — these cost nothing and catch obvious issues:
   ─────────────────────────────
   Result:           PASS | FAIL
 ```
+
+> SAST FAIL 시 Stage 2로 넘어가지 않는다. Critical/High를 먼저 수정하고 `check-sast-gate.sh`를 재실행한다.
 
 If Stage 1 fails → stop. Fix mechanical issues before proceeding.
 
